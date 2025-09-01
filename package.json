@@ -1,6 +1,6 @@
 {
   "name": "@zwfthcks/zwift-data",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Library for accessing Zwift game data from files",
   "main": "index.js",
   "scripts": {
