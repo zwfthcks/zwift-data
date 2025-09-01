@@ -233,7 +233,7 @@ class ZwiftData {
      * @async
      * @returns {Promise<number|undefined>} The bike ID or undefined if not found
      */
-    async getbikeId() {
+    async getBikeId() {
         if ((this._bikeId ?? undefined) !== undefined) {
             return this._bikeId
         }
