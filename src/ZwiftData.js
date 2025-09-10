@@ -3,6 +3,14 @@ const os = require('node:os');
 const path = require('node:path');
 const { getDocumentsPath } = require('platform-paths');
 
+// Define shared regex patterns so they can be referenced inside the class and from outside
+const VERSION_REGEX = /\[(?:[^\]]*)\]\s+Game Version: ((?:\d+)\.(?:\d+)\.(?:\d+))/g;
+const PLAYER_REGEX = /\[(?:[^\]]*)\]\s+(?:NETCLIENT:){0,1}\[INFO\] Player ID: (\d*)/g;
+const JERSEY_REGEX = /\[(?:[^\]]*)\]\s+.*(?:set Jersey: |Jersey (?:has been )?set )(\d+)/g;
+const BIKE_REGEX = /\[(?:[^\]]*)\]\s+.*?(?:set Bike|Bike set): (\d+)/g;
+const SPORT_REGEX = /\[([^\]]*)\]\s+Setting sport to (\S+)/g;
+const WORLD_REGEX = /\[([^\]]*)\]\s+Loading WAD file 'assets\/Worlds\/world(\d*)\/data.wad/g;
+
 /**
  * @class ZwiftData
  * @description A class to handle Zwift game data and process management
@@ -145,7 +153,7 @@ class ZwiftData {
         // Fall back to reading from log.txt
 
         // Determine game version from log.txt
-        const version = /\[(?:[^\]]*)\]\s+Game Version: ((?:\d+)\.(?:\d+)\.(?:\d+))/g;
+        const version = VERSION_REGEX;
         let gameVersion = await this._getLast(version, 1) || '0.0.0';
         this.log(`Zwift seems to be version: ${gameVersion}`);
 
@@ -195,7 +203,7 @@ class ZwiftData {
         if ((this._playerId ?? undefined) !== undefined) {
             return this._playerId;
         }
-        const player = /\[(?:[^\]]*)\]\s+(?:NETCLIENT:){0,1}\[INFO\] Player ID: (\d*)/g;
+        const player = PLAYER_REGEX;
         let found = await this._getLast(player, 1);
         if (found) {
             let playerId = parseInt(found);
@@ -214,11 +222,7 @@ class ZwiftData {
             return this._jerseyId;
         }
 
-        // [7:54:19] [Garage Last Selected] Player Profile Update set Jersey: 363655187, set Bike: 1029279076
-        // [17:53:29] [Garage Last Selected] Player Profile Update for Cycling Jersey set 872957794
-        // [12:46:00] DEBUG LEVEL: [Garage Last Selected] Jersey has been set 363655187
-
-        const jersey = /\[(?:[^\]]*)\]\s+.*(?:set Jersey: |Jersey (?:has been )?set )(\d+)/g;
+        const jersey = JERSEY_REGEX;
         let found = await this._getLast(jersey, 1);
         if (found) {
             let jerseyId = parseInt(found);
@@ -237,9 +241,9 @@ class ZwiftData {
         if ((this._bikeId ?? undefined) !== undefined) {
             return this._bikeId
         }
-        // [7:54:19] [Garage Last Selected] Player Profile Update set Jersey: 363655187, set Bike: 1029279076
 
-        const bike = /\[(?:[^\]]*)\]\s+.*(?:set Bike: )(\d+)/g;
+        const bike = BIKE_REGEX;
+
         let found = await this._getLast(bike, 1)
         if (found) {
             let bikeId = parseInt(found);
@@ -257,7 +261,7 @@ class ZwiftData {
         if ((this._sportId ?? undefined) !== undefined) {
             return this._sportId;
         }
-        const sport = /\[([^\]]*)\]\s+Setting sport to (\S+)/g;
+        const sport = SPORT_REGEX;
         let sportId = parseInt(await this._getLast(sport, 2) || 0);
         this.log(`Zwift seems to run with sport ID: ${sportId} = ${('00000000' + sportId.toString(16)).substr(-8)}`);
         return sportId;
@@ -272,7 +276,7 @@ class ZwiftData {
         if ((this._worldId ?? undefined) !== undefined) {
             return this._worldId;
         }
-        const world = /\[([^\]]*)\]\s+Loading WAD file 'assets\/Worlds\/world(\d*)\/data.wad/g;
+        const world = WORLD_REGEX;
         let worldId = parseInt(await this._getLast(world, 2) || 0);
         this.log(`Zwift seems to run in world ID: ${worldId} = ${('00000000' + worldId.toString(16)).substr(-8)}`);
         return worldId;
@@ -333,11 +337,49 @@ class ZwiftData {
     }
 
     /**
+     * Helper method to get the last matching item from a pattern in the log file
+     * @private
+     * @async
+     * @param {RegExp} pattern - Regular expression pattern to match
+     * @param {number} matchItem - Index of the capture group to return
+     * @param {string} [key] - Unused parameter
+     * @param {string} [description=''] - Unused parameter
+     * @param {boolean} [emit=false] - Unused parameter
+     * @returns {Promise<string|undefined>} The last matching value or undefined if not found
+     */
+    async _getAll(pattern, matchItem, key, description = '', emit = false) {
+        if (fs.existsSync(this.logTxtPath)) {
+            try {
+                let logtxt = fs.readFileSync(this.logTxtPath, 'utf8');
+
+                let match;
+                let result = [];
+
+                while ((match = pattern.exec(logtxt)) !== null) {
+                    result.push(match[matchItem]);
+                }
+
+                return result;
+            } catch (error) {
+                this.log('Caught error reading Zwift log file:', error);
+            }
+        }
+    }
+
+    /**
      * Closes any process handles or resources (placeholder method)
      */
     closeProcess() {
         // Placeholder - ZwiftData doesn't directly manage process handles anymore
     }
 }
+
+// Attach pattern constants to the class so external code can reference them
+ZwiftData.VERSION_REGEX = VERSION_REGEX;
+ZwiftData.PLAYER_REGEX = PLAYER_REGEX;
+ZwiftData.JERSEY_REGEX = JERSEY_REGEX;
+ZwiftData.BIKE_REGEX = BIKE_REGEX;
+ZwiftData.SPORT_REGEX = SPORT_REGEX;
+ZwiftData.WORLD_REGEX = WORLD_REGEX;
 
 module.exports = ZwiftData;
