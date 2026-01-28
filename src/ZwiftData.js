@@ -51,6 +51,7 @@ class ZwiftData {
         this.log('Testing the log function in ZwiftData');
 
         this.appFolder = options?.appFolder || '';
+        this.zwiftDocumentsFolder = options?.zwiftDocumentsFolder || '';
         this.zwiftVerCurFilenameTxtPath = options?.zwiftVerCurFilenameTxtPath || '';
         this.logTxtPath = options?.logTxtPath || '';
         this.prefsXmlPath = options?.prefsXmlPath || '';
@@ -93,6 +94,7 @@ class ZwiftData {
         }
 
         this.verCurFilenameTxt = this.verCurFilenameTxt || path.resolve(this.appFolder, 'Zwift_ver_cur_filename.txt');
+
     }
 
     /**
@@ -104,14 +106,31 @@ class ZwiftData {
      */
     async init() {
         if (!this.logTxtPath || !this?.prefsxmlPath) {
-            const documentsPath = await getDocumentsPath();
+            if (!this.zwiftDocumentsFolder) {
+                // if win32, check if there are any .txt files in %localappdata%/Zwift/Logs. If so,
+                // use %localappdata%/Zwift as zwiftDocumentsFolder
+                // otherwise, use Documents/Zwift
+                try {
+                    let localAppData = process.env.LOCALAPPDATA || path.resolve(os.homedir(), 'AppData', 'Local');
+                    let zwiftLocalAppDataLogs = path.resolve(localAppData, 'Zwift', 'Logs');
+                    let logFiles = fs.readdirSync(zwiftLocalAppDataLogs).filter(file => file.endsWith('.txt'));
+                    if (logFiles.length > 0) {
+                        this.zwiftDocumentsFolder = path.resolve(localAppData, 'Zwift');
+                    } else {
+                        this.zwiftDocumentsFolder = path.resolve(await getDocumentsPath(), 'Zwift');
+                    }
+                } catch (e) {
+                    this.log('Caught error in finding Zwift documents folder:', e);
+                    this.zwiftDocumentsFolder = path.resolve(await getDocumentsPath(), 'Zwift');
+                }
+            }
             if (!this?.zwiftlog) {
                 // zwiftlog: path to log.txt for Zwift
-                this.logTxtPath = path.resolve(documentsPath, 'Zwift', 'Logs', 'Log.txt');
+                this.logTxtPath = path.resolve(this.zwiftDocumentsFolder, 'Logs', 'Log.txt');
             }
             if (!this?.prefsxmlPath) {
                 // prefsxml: path to prefs.xml for Zwift
-                this.prefsxmlPath = path.resolve(documentsPath, 'Zwift', 'prefs.xml');
+                this.prefsxmlPath = path.resolve(this.zwiftDocumentsFolder, 'prefs.xml');
             }
         }
         return true;
