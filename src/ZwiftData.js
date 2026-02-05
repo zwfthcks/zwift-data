@@ -107,13 +107,14 @@ class ZwiftData {
     async init() {
         if (!this.logTxtPath || !this?.prefsxmlPath) {
             if (!this.zwiftDocumentsFolder) {
-                // if win32, check if there are any .txt files in %localappdata%/Zwift/Logs. If so,
+                // if win32, check if there are any Log*.txt files in %localappdata%/Zwift/Logs. If so,
                 // use %localappdata%/Zwift as zwiftDocumentsFolder
                 // otherwise, use Documents/Zwift
                 try {
                     let localAppData = process.env.LOCALAPPDATA || path.resolve(os.homedir(), 'AppData', 'Local');
                     let zwiftLocalAppDataLogs = path.resolve(localAppData, 'Zwift', 'Logs');
-                    let logFiles = fs.readdirSync(zwiftLocalAppDataLogs).filter(file => file.endsWith('.txt'));
+                    // look specifically for files starting with "Log" (e.g. Log.txt, Log (old 1).txt)
+                    let logFiles = fs.readdirSync(zwiftLocalAppDataLogs).filter(file => /^Log.*\.txt$/i.test(file));
                     if (logFiles.length > 0) {
                         this.zwiftDocumentsFolder = path.resolve(localAppData, 'Zwift');
                     } else {
